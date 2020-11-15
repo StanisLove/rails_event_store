@@ -3,11 +3,31 @@
 module RailsEventStore
   module RSpec
     class HavePublished
+      class CrudeFailureMessageFormatter
+        def initialize(differ)
+          @differ = differ
+        end
+
+        def failure_message(_matcher, expected, events)
+          "expected #{expected} to be published, diff:" +
+            differ.diff_as_string(expected.to_s, events.to_a.to_s)
+        end
+
+        def negated_failure_message(_matcher, expected, events)
+          "expected #{expected} not to be published, diff:" +
+            differ.diff_as_string(expected.to_s, events.to_a.to_s)
+        end
+
+        private
+        attr_reader :differ
+      end
+
       def initialize(mandatory_expected, *optional_expected, differ:, phraser:)
         @expected  = [mandatory_expected, *optional_expected]
         @matcher   = ::RSpec::Matchers::BuiltIn::Include.new(*expected)
         @differ    = differ
         @phraser   = phraser
+        @failure_message_formatter = CrudeFailureMessageFormatter.new(@differ)
       end
 
       def matches?(event_store)
@@ -43,13 +63,11 @@ module RailsEventStore
       end
 
       def failure_message
-        "expected #{expected} to be published, diff:" +
-            differ.diff_as_string(expected.to_s, events.to_a.to_s)
+        failure_message_formatter.failure_message(matcher, expected, events)
       end
 
       def failure_message_when_negated
-        "expected #{expected} not to be published, diff:" +
-            differ.diff_as_string(expected.to_s, events.to_a.to_s)
+        failure_message_formatter.negated_failure_message(matcher, expected, events)
       end
 
       def description
@@ -72,7 +90,7 @@ module RailsEventStore
         end
       end
 
-      attr_reader :differ, :phraser, :stream_name, :expected, :count, :events, :start
+      attr_reader :differ, :phraser, :stream_name, :expected, :count, :events, :start, :failure_message_formatter, :matcher
     end
   end
 end
