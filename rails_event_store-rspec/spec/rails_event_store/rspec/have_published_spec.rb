@@ -233,6 +233,24 @@ module RailsEventStore
         EOS
       end
 
+      specify do
+        event_store.publish(FooEvent.new)
+        event_store.publish(FooEvent.new)
+        matcher_ = HavePublished.new(
+          expected = matchers.an_event(FooEvent),
+          differ: colorless_differ,
+          phraser: phraser,
+          failure_message_formatter: HavePublished::StepByStepFailureMessageFormatter
+        ).exactly(3).times
+        matcher_.matches?(event_store)
+
+        expect(matcher_.failure_message.to_s).to eq(<<~EOS)
+        expected event [#{expected.inspect}]
+        to be published 3 times
+        but was published 2 times
+        EOS
+      end
+
       specify { expect{ HavePublished.new() }.to raise_error(ArgumentError) }
 
       specify do
